@@ -33,6 +33,27 @@ type EC2InstanceSpec struct {
 	// foo is an example field of EC2Instance. Edit ec2instance_types.go to remove/update
 	// +optional
 	Foo *string `json:"foo,omitempty"`
+
+	// Region defines the instances requested place
+	// +required
+	Region string `json:"region,omitempty"`
+
+	// +required
+	AccessKeyID string `json:"accessKeyID,omitempty"`
+
+	// +required
+	SecretAccessKey string `json:"secretAccessKey,omitempty"`
+
+	// TODO: Explore Validation and Mutation webhooks
+	// InstanceType describes the spec of the instance
+	// +optional
+	InstanceType string `json:"instanceType,omitempty"`
+
+	// +optional
+	// IPv4 address of your subnet
+	// If not mentioned aws will randomly assign the ip from your VPC
+	// If VPC is not available "ipv4' should be provided
+	IPv4 string `json:"ipv4,omitempty"`
 }
 
 // EC2InstanceStatus defines the observed state of EC2Instance.
