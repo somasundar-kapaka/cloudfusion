@@ -19,12 +19,14 @@ package controller
 import (
 	"context"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	computealphav1 "github.com/somasundar-kapaka/cloudfusion/api/alphav1"
+	"github.com/somasundar-kapaka/cloudfusion/internal/ec2i"
 )
 
 // EC2InstanceReconciler reconciles a EC2Instance object
@@ -47,15 +49,40 @@ type EC2InstanceReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.22.4/pkg/reconcile
 func (r *EC2InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
-	// TODO(user): your logic here
+	log.Info("Reconciling ec2 instance request")
+
+	ec2Inc := &computealphav1.EC2Instance{}
+
+	err := r.Client.Get(ctx, req.NamespacedName, ec2Inc)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("ec2 Instance not found", "name", req.Name, "namespace", req.Namespace)
+			return ctrl.Result{}, err
+		}
+		log.Error(err, "error fetching ec2 Instance", "name", req.Name, "namespace", req.Namespace)
+		return ctrl.Result{}, err
+	}
+
+	err = ec2i.ValidteNewInstanceRequest(ec2Inc)
+	if err != nil {
+		log.Error(err, "Invalid ec2 instance spec", "name", req.Name, "namespace", req.Namespace)
+		return ctrl.Result{}, err
+	}
+
+	err = ec2i.CreateEC2Instance(ctx, ec2Inc)
+	if err != nil {
+		log.Error(err, "error creating ec2 instance", "name", req.Name, "namespace", req.Namespace)
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *EC2InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// TODO: Explore what can a NewControllerManagedBy do ?
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&computealphav1.EC2Instance{}).
 		Named("ec2instance").
