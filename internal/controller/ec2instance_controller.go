@@ -27,6 +27,7 @@ import (
 
 	computealphav1 "github.com/somasundar-kapaka/cloudfusion/api/alphav1"
 	"github.com/somasundar-kapaka/cloudfusion/internal/ec2i"
+	"github.com/somasundar-kapaka/cloudfusion/utils"
 )
 
 // EC2InstanceReconciler reconciles a EC2Instance object
@@ -54,7 +55,6 @@ func (r *EC2InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	log.Info("Reconciling ec2 instance request")
 
 	ec2Inc := &computealphav1.EC2Instance{}
-
 	err := r.Client.Get(ctx, req.NamespacedName, ec2Inc)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -64,12 +64,36 @@ func (r *EC2InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		log.Error(err, "error fetching ec2 Instance", "name", req.Name, "namespace", req.Namespace)
 		return ctrl.Result{}, err
 	}
+	
+
+	// Add delete functionality
+	if ec2Inc.ObjectMeta.DeletionTimestamp != nil {
+
+		// TODO: Delete func  EC2 in AWS
+		// TODO: updae the object ec2i
+		
+
+		// Write delete functionality
+		utils.DeleteFinalizers(&ec2Inc.Finalizers, utils.FinalizerKey)
+		err = r.Client.Delete(ctx, ec2Inc)
+		if err != nil {
+			log.Error(err, "error deleting ec2 instance", "name", ec2Inc.Name, "namespace", ec2Inc.Namespace)
+			return ctrl.Result{}, err
+		}
+		log.Info("ec2 instance deleted successfully", "name", ec2Inc.Name, "namespace", ec2Inc.Namespace)
+		// do not reque
+		return ctrl.Result{}, nil
+	}
 
 	err = ec2i.ValidteNewInstanceRequest(ec2Inc)
 	if err != nil {
 		log.Error(err, "Invalid ec2 instance spec", "name", req.Name, "namespace", req.Namespace)
 		return ctrl.Result{}, err
 	}
+
+	// TODO: Check finalizers exits if not add one Before creating EC2: utils.ContainsFinalizers
+	utils.AddFinalizers(&ec2Inc.Finalizers, utils.FinalizerKey)
+
 
 	err = ec2i.CreateEC2Instance(ctx, ec2Inc)
 	if err != nil {
