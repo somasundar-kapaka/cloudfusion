@@ -77,4 +77,8 @@ func ValidteNewInstanceRequest(o *computealphav1.EC2Instance) error {
 	return nil
 }
 
+
+
 func CheckInstanceExists() {}
+
+
